@@ -82,6 +82,10 @@ colleges_clean <- colleges_clean |>
 #| label: wd-2-ex-3
 # Lab-3, Question 11
 
+# Growing comments: It looks like you are using a tool that was not explicitly taught in lecture / lab. While this tool accomplishes this task, that is not the intention of this assignment. You are being assessed on your understanding of the tools that have been taught in this course. In the future, please use tools that have been taught in the course when addressing Lab questions.dense_rank() is not in the course materials!
+
+# Instead of dense_rank(), I used slice_min() and slice_max() to pick the rows with the smallest and largest avg_resp. This is a cleaner and more direct approach.
+
 teacher_evals_clean |>
   summarise(
     fail_cur = mean(percent_failed_cur, na.rm = TRUE),
@@ -89,18 +93,30 @@ teacher_evals_clean |>
   ) |>
   filter(seniority == 1) |>
   summarise(
-    avg_fail = mean(fail_cur, na.rm = TRUE),
+    avg_fail  = mean(fail_cur, na.rm = TRUE),
     n_courses = n(),
     .by = teacher_id
   ) |>
-  mutate(
-    r_low = dense_rank(avg_fail),
-    r_high = dense_rank(desc(avg_fail)),
-    which = case_when(r_low == 1 ~ "lowest", r_high == 1 ~ "highest")
+  slice_min(avg_fail, n = 1, with_ties = TRUE) |>
+  mutate(which = "lowest") |>
+  bind_rows(
+    teacher_evals_clean |>
+      summarise(
+        fail_cur = mean(percent_failed_cur, na.rm = TRUE),
+        .by = c(teacher_id, course_id, seniority)
+      ) |>
+      filter(seniority == 1) |>
+      summarise(
+        avg_fail  = mean(fail_cur, na.rm = TRUE),
+        n_courses = n(),
+        .by = teacher_id
+      ) |>
+      slice_max(avg_fail, n = 1, with_ties = TRUE) |>
+      mutate(which = "highest")
   ) |>
-  filter(!is.na(which)) |>
   select(which, teacher_id, n_courses, avg_fail) |>
   arrange(desc(which))
+
 ```
 
 **WD-3: I can filter rows from a dataframe for a *variety* of data types (e.g., numeric, integer, character, factor, date).**
@@ -235,17 +251,25 @@ ca_childcare <- ca_childcare |>
 #| label: wd-4-factor-ex-2
 # Lab-4, Question 7
 
+# Growing comments: Nice work pivoting and modifying the age variable! Technically, recode() has been superseded. Meaning, there are other functions you should use instead. factor() works, but you were asked to use a function from the forcats package to accomplish this!
+
+# I replaced factor() with fct_relevel() and replaced recode() with fct_recode(). This way, I was able to use forcats functions that are more current, specialized for factors and easier to read.
+
 plot_df <- ca_childcare |>
   select(region, county_name, study_year, mc_infant, mc_toddler, mc_preschool) |>
-  pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
-               names_to = "age_group", values_to = "price") |>
+  pivot_longer(
+    cols = c(mc_infant, mc_toddler, mc_preschool),
+    names_to = "age_group",
+    values_to = "price"
+  ) |>
   mutate(
-    age_group = recode(age_group,
-                       mc_infant = "Infant",
-                       mc_toddler = "Toddler",
-                       mc_preschool = "Preschool"),
-    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
-    region    = fct_reorder2(region, study_year, price)   
+    age_group = fct_recode(age_group,
+      "Infant" = "mc_infant",
+      "Toddler" = "mc_toddler",
+      "Preschool" = "mc_preschool"
+    ),
+    age_group = fct_relevel(age_group, "Infant", "Toddler", "Preschool"),
+    region    = fct_reorder2(region, study_year, price)
   )
 ```
 
@@ -667,15 +691,26 @@ ggplot(plot_df, aes(study_year, price, color = region)) +
 #| label: dvs-2-ex-3
 # Lab-4, Question 8
 
-ggplot(filter(ca_childcare, study_year == 2018), 
-  aes(x = mhi_2018, y = mc_infant, color = region)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(aes(group = 1), method = "lm", se = TRUE, 
-    color = "black", linewidth = 0.9) +
+# Growing comments: I don't need regions in this plot! Wouldn’t it be nice to add $ signs before these currency values?
+
+# I removed regions from the plot and added dollar signs befor the currency values. This helps to improve readability and provides a clear plot.
+
+ggplot(
+  filter(ca_childcare, study_year == 2018),
+  aes(x = mhi_2018, y = mc_infant)
+) +
+  geom_point(alpha = 0.6, color = "#2C3E50") + 
+  geom_smooth(method = "lm", se = TRUE, color = "black", linewidth = 0.9) +
+  scale_x_continuous(
+    labels = label_dollar(accuracy = 1), 
+    name = "Median Household Income (2018 $)"
+  ) +
+  scale_y_continuous(
+    labels = label_dollar(accuracy = 1),  
+    name = "Weekly Infant Price ($)"
+  ) +
   labs(
-    title = "Infant Center-Based Price vs. Median Household Income (CA)",
-    x = "Median household income (2018 $)",
-    y = "Weekly infant price ($)"
+    title = "Infant Center-Based Price vs. Median Household Income (CA, 2018)"
   ) +
   theme_minimal()
 ```
@@ -736,11 +771,11 @@ plot_df <- ca_childcare |>
   pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
                names_to = "age_group", values_to = "price") |>
   mutate(
-    age_group = recode(age_group,
+    age_group = fct_recode(age_group,
                        mc_infant = "Infant",
                        mc_toddler = "Toddler",
                        mc_preschool = "Preschool"),
-    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
+    age_group = fct_relevel(age_group, levels = c("Infant","Toddler","Preschool")),
     region    = fct_reorder2(region, study_year, price)   
   )
 
@@ -777,6 +812,11 @@ ggplot(plot_df, aes(study_year, price, color = region)) +
 ```{r}
 #| label: dvs-3-1-ex-1
 # Lab-2, Question 16
+
+# Growing comments: Technically, coord_flip() is a way to flip the coordinates of a plot, but it an outdated way to do this. As of three years ago, you can flip the coordinates of a plot using a much simpler approach. Find this method!
+
+
+# In response to these revisions, I flipped the coordinates through the use of "orientation = 'y'" within geom_jitter. By doing so, I am able to complete the task in a way that is simpler and easier to understand.
 
 ggplot(surveys, aes(x = weight, y = species)) +
   geom_boxplot(outlier.shape = NA, orientation = "y") +
@@ -872,6 +912,10 @@ childcare_summary <- childcare_2018 |>
 #| label: dvs-5-1
 # Lab-3, Question 12
 
+# Growing comments: It looks like you are using a tool that was not explicitly taught in lecture / lab. While this tool accomplishes this task, that is not the intention of this assignment. You are being assessed on your understanding of the tools that have been taught in this course. In the future, please use tools that have been taught in the course when addressing Lab questions.dense_rank() is not in the course materials!
+
+# Instead of dense_rank(), I used slice_min() and slice_max() to pick the rows with the smallest and largest avg_resp. This is a cleaner and more direct approach.
+
 teacher_evals_clean |>
   summarise(
     resp_share = mean(resp_share, na.rm = TRUE),
@@ -889,13 +933,17 @@ teacher_evals_clean |>
     sex       = first(sex),
     degree    = first(degree),
     .by = teacher_id
-  ) |>
-  mutate(
-    r_low  = dense_rank(avg_resp),
-    r_high = dense_rank(desc(avg_resp)),
-    which  = case_when(r_low == 1 ~ "lowest", r_high == 1 ~ "highest")
-  ) |>
-  filter(!is.na(which)) |>
+  )
+
+lowest <- teacher_summary |>
+  slice_min(avg_resp, n = 1, with_ties = TRUE) |>
+  mutate(which = "lowest")
+
+highest <- teacher_summary |>
+  slice_max(avg_resp, n = 1, with_ties = TRUE) |>
+  mutate(which = "highest")
+
+result <- bind_rows(highest, lowest) |>
   mutate(avg_resp_pct = round(100 * avg_resp, 1)) |>
   select(which, teacher_id, degree, seniority, sex, n_courses, avg_resp_pct) |>
   arrange(desc(which))
@@ -1016,41 +1064,57 @@ ggplot(plot_df, aes(study_year, price, color = region)) +
 #| label: dvs-7-ex-2
 # Lab-4, Question 7
 
+# Growing comments: Nice work pivoting and modifying the age variable! Technically, recode() has been superseded. Meaning, there are other functions you should use instead.factor() works, but you were asked to use a function from the forcats package to accomplish this!Nice work changing the size of the x-axis text! Can you make this change to other aspects of the plot?Can you match my colors??? These are coming from a package and you will need to expand the color palette to get all 10 colors.
+
+# I replaced recode() with fct_recode(), using the forcats package. This is a better way of handling factor levels directly. I also used fct_relevel() instead of factor(), using a forcats function which helps improve readability. I also increased the font sizes and bolded the axis and legend text. This helps to improve readability.
+
 plot_df <- ca_childcare |>
   select(region, county_name, study_year, mc_infant, mc_toddler, mc_preschool) |>
-  pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
-               names_to = "age_group", values_to = "price") |>
+  pivot_longer(
+    cols = c(mc_infant, mc_toddler, mc_preschool),
+    names_to = "age_group",
+    values_to = "price"
+  ) |>
   mutate(
-    age_group = recode(age_group,
-                       mc_infant = "Infant",
-                       mc_toddler = "Toddler",
-                       mc_preschool = "Preschool"),
-    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
-    region    = fct_reorder2(region, study_year, price)   
+    age_group = fct_recode(age_group,
+                           "Infant" = "mc_infant",
+                           "Toddler" = "mc_toddler",
+                           "Preschool" = "mc_preschool"),
+    age_group = fct_relevel(age_group, "Infant", "Toddler", "Preschool"),
+    region    = fct_reorder2(region, study_year, price)
   )
 
-cols <- hcl.colors(nlevels(plot_df$region), "Dark 3")
+cols <- hcl.colors(10, "Dark 3")
 
 ggplot(plot_df, aes(study_year, price, color = region)) +
-  geom_point(alpha = 0.5, size = 1.2) +
+  geom_point(alpha = 0.6, size = 1.5) +
   geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
   facet_wrap(~ age_group, nrow = 1) +
-  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
-                     name = "Study Year") +
-  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
-                     labels = scales::number_format(accuracy = 1),  
-                     name = NULL) +
+  scale_x_continuous(
+    breaks = seq(2008, 2018, 2),
+    name = "Study Year"
+  ) +
+  scale_y_continuous(
+    breaks = seq(100, 500, 100),
+    labels = number_format(accuracy = 1),
+    name = "Weekly Median Price ($)"
+  ) +
   coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
   scale_color_manual(values = cols, name = "California Region") +
-  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
+  labs(title = "Weekly Median Price for Center-Based Childcare (2008–2018)") +
   theme_minimal(base_size = 12) +
   theme(
     aspect.ratio = 1,
     panel.grid.minor = element_blank(),
-    axis.text.x = element_text(size = 6),   
-    legend.position = "right",               
+    axis.text.x = element_text(size = 8, face = "bold"),
+    axis.text.y = element_text(size = 8, face = "bold"),
+    axis.title.x = element_text(size = 10, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 8),
     legend.justification = "center",
     legend.box.margin = margin(0, 0, 0, 10),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
     plot.margin = margin(5.5, 20, 5.5, 5.5)
   )
 ```
@@ -1119,6 +1183,13 @@ teacher_missing <- teacher_evals_clean |>
 ```{r}
 #| label: pe-2-1
 # Lab-3, Question 7
+
+teacher_degrees <- instructors |>
+  mutate(academic_degree = if_else(is.na(academic_degree), "Missing",
+    as.character(academic_degree))) |>
+  count(academic_degree, name = "n") |>
+  mutate(pct = round(100 * n / sum(n), 1)) |>
+  arrange(desc(n))
 ```
 
 -   Example 2: Function that operates on data frames
@@ -1182,15 +1253,26 @@ teacher_missing <- teacher_evals_clean |>
 #| label: pe-4-2
 # Lab-4, Question 8
 
-ggplot(filter(ca_childcare, study_year == 2018), 
-  aes(x = mhi_2018, y = mc_infant, color = region)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(aes(group = 1), method = "lm", se = TRUE, 
-    color = "black", linewidth = 0.9) +
+# Growing comments: I don't need regions in this plot! Wouldn’t it be nice to add $ signs before these currency values?
+
+# I removed regions from the plot and added dollar signs before the currency values. This helps to improve readability and provides a clear plot.
+
+ggplot(
+  filter(ca_childcare, study_year == 2018),
+  aes(x = mhi_2018, y = mc_infant)
+) +
+  geom_point(alpha = 0.6, color = "#2C3E50") + 
+  geom_smooth(method = "lm", se = TRUE, color = "black", linewidth = 0.9) +
+  scale_x_continuous(
+    labels = label_dollar(accuracy = 1), 
+    name = "Median Household Income (2018 $)"
+  ) +
+  scale_y_continuous(
+    labels = label_dollar(accuracy = 1),  
+    name = "Weekly Infant Price ($)"
+  ) +
   labs(
-    title = "Infant Center-Based Price vs. Median Household Income (CA)",
-    x = "Median household income (2018 $)",
-    y = "Weekly infant price ($)"
+    title = "Infant Center-Based Price vs. Median Household Income (CA, 2018)"
   ) +
   theme_minimal()
 ```
@@ -1234,6 +1316,10 @@ t.test(len ~ supp,
 #| label: dsm-2-2
 # Lab-2, Question 17
 
+# Growing comments: Do you need to save an object here? All I want is to see the output...
+
+# Rather than creating a new object, I simply outputted the summary of the ANOVA table, resulting in simple, straightforward code
+
 summary(aov(weight ~ species, data = surveys))
 ```
 
@@ -1248,16 +1334,16 @@ chisq.test(teacher_evals_compare$set_level, teacher_evals_compare$sen_level)
 
 ## Revising My Thinking
 
-<!-- How did you revise your thinking throughout the course? How did you revise your thinking on the code examples you have provided in your portfolio? -->
-
-<!-- For the revisions included in your Portfolio, to help me understand the nature of your revisions, please denote somehow the feedback I provided you (e.g., boldface, italics, colored text) before your revisions. -->
+Throughout the course, I have revised my thinking when completing assignments to find an approach that is able to complete the task in a way that is straightforward, efficient and easy to understand. I have tried to ensure to avoid redundancy and repetition in my code blocks. I have also tried to ensure that I am using the most up to date functions. This is to ensure I am using the most clear, straightforward methods available.
 
 ## Extending My Thinking
 
-<!-- How did you extended your thinking throughout the course? How did you extend your thinking on the code examples you have provided in your portfolio? -->
+Thanks to the revisions provided on the labs throughout this course I have been able to extend my thinking and approach to assignments. One of the things I have learned to do is provide thorough explanations and descriptions of the data beyond the plots.
 
 ## Peer Support & Collaboration
 
-<!-- Include an image or a description of feedback you gave that you are proud of (either in a peer review or in Discord). -->
+Feedback that I gave:
 
-<!-- Include a description of how you grew as a collaborator through the weekly pair programming activities.   -->
+"Great job! Your code is clear and your formatting is very tidy. I appreciated how you started a new line after each "+" symbol, This made the code very clear and easy to read."
+
+Through the weekly pair programming activities, I have definitely noticed an improvement in my collaboration skills. I found that through the programmer vs coder system, it helped to ensure the work was spread evenly, rather than one person doing all of the work. When it was my turn to type, I typed what my partner said rather than what I wanted, and vice versa. If we were stuck on a particular problem, then we were able to ask each other for help, and if we still were not able to solve the problem collaboratively, we were able to ask our professor or TA for additional assistance.
