@@ -233,7 +233,20 @@ ca_childcare <- ca_childcare |>
 
 ```{r}
 #| label: wd-4-factor-ex-2
+# Lab-4, Question 7
 
+plot_df <- ca_childcare |>
+  select(region, county_name, study_year, mc_infant, mc_toddler, mc_preschool) |>
+  pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
+               names_to = "age_group", values_to = "price") |>
+  mutate(
+    age_group = recode(age_group,
+                       mc_infant = "Infant",
+                       mc_toddler = "Toddler",
+                       mc_preschool = "Preschool"),
+    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
+    region    = fct_reorder2(region, study_year, price)   
+  )
 ```
 
 -   Character (example must use functions from **stringr**)
@@ -252,7 +265,14 @@ step_1 <- message_data |>
 
 ```{r}
 #| label: wd-4-date
+# Used data from PA 5-2 to simulate
 
+suspects_mod <- suspects |>
+  mutate(
+    spotted_day   = day(Time.Spotted),          
+    spotted_month = month(Time.Spotted, label = TRUE, abbr = FALSE),  
+    spotted_year  = year(Time.Spotted)
+  )
 ```
 
 **WD-5: I can use mutating joins to combine multiple dataframes.**
@@ -280,14 +300,20 @@ ca_childcare <-
       arrange(county_name, study_year) |>
       distinct(county_name, study_year, .keep_all = TRUE),
     by = c("county_name", "study_year")
-  )
+    )
 ```
 
 -   `right_join()` Example 1
 
 ```{r}
 #| label: wd-5-right
+# Used data from Lab-4 to simulate
 
+ca_childcare_right <- ca_childcare |>
+  right_join(
+    tax_rev |> rename(county_name = entity_name, study_year = year),
+    by = c("county_name", "study_year")
+    )
 ```
 
 -   `left_join()` **or** `right_join()` Example 2
@@ -308,14 +334,31 @@ ca_childcare <- childcare_costs |>
 
 ```{r}
 #| label: wd-5-inner-ex-1
+# Used data from Lab-4 to simulate
 
+ca_childcare_inner <- ca_childcare |>
+  inner_join(
+    tax_rev |> rename(county_name = entity_name, study_year = year),
+    by = c("county_name", "study_year")
+    )
 ```
 
 -   `inner_join()` Example 2
 
 ```{r}
 #| label: wd-5-inner-ex-2
+# Used data from Lab-4 to simulate
 
+tax_rev_2018 <- tax_rev |>
+  filter(year == 2018) |>
+  rename(county_name = entity_name, study_year = year)
+
+childcare_2018 <- ca_childcare |>
+  filter(study_year == 2018) |>
+  select(county_name, mc_infant, mc_toddler, mc_preschool)
+
+childcare_tax_2018 <- childcare_2018 |>
+  inner_join(tax_rev_2018, by = c("county_name", "study_year"))
 ```
 
 **WD-6: I can use filtering joins to filter rows from a dataframe.**
@@ -343,14 +386,20 @@ ca_childcare <-
       arrange(county_name, study_year) |>
       distinct(county_name, study_year, .keep_all = TRUE),
     by = c("county_name", "study_year")
-  )
+    )
 ```
 
 -   `anti_join()`
 
 ```{r}
 #| label: wd-6-anti
+# Used data from Lab-4 to simulate
 
+ca_childcare_anti <- ca_childcare |>
+  anti_join(
+    tax_rev |> rename(county_name = entity_name, year = study_year),
+    by = c("county_name", "study_year")
+    )
 ```
 
 **WD-7: I can pivot dataframes from long to wide and visa versa**
@@ -365,8 +414,7 @@ military_long <- military_clean |>
   pivot_longer(
     cols = `1988`:`2019`,
     names_to = "Year",
-    values_to = "Expenditures"
-  )
+    values_to = "Expenditures")
 ```
 
 -   `pivot_wider()`
@@ -396,8 +444,8 @@ The following assignments satisfy the above criteria:
 -   Lab 2
 -   Lab 3
 -   Challenge 3
--   Example 4
--   Example 5
+-   Lab 4
+-   Challenge 4
 
 **R-2: I can write well documented and tidy code.**
 
@@ -423,7 +471,13 @@ ToothGrowth |>
 
 ```{r}
 #| label: r-2-2
+# PA-3, Part 2
 
+colleges_clean1 <- colleges_clean |>
+  filter(REGION == 7) |>
+  filter(ADM_RATE>median(ADM_RATE)) |>
+  filter(TUITIONFEE_IN != TUITIONFEE_OUT) |>
+  filter((SAT_AVG)%%2==1)
 ```
 
 -   Example of function formatting
@@ -463,7 +517,18 @@ colleges_clean <- colleges |>
 
 ```{r}
 #| label: r-3-example
+# Lab-4, Question 5
 
+median_income_region <- ca_childcare |>
+  filter(study_year %in% c(2008, 2018)) |>
+  group_by(region, study_year) %>%
+  summarise(
+    median_income_2018 = median(mhi_2018, na.rm = TRUE), 
+    .groups = "drop") |>
+  pivot_wider(names_from = study_year, 
+  values_from = median_income_2018) |>
+  arrange(desc(`2018`)) |>
+  select(region, `2008`, `2018`)
 ```
 
 -   Example (function stops)
@@ -491,7 +556,7 @@ ggplot(data = surveys, mapping = aes(x = weight, y = hindfoot_length)) +
     subtitle = "Y-axis: Hindfoot Length (mm)",
     x = "Weight (g)",
     y = NULL
-  )
+    )
 ```
 
 -   At least one numeric variable and one categorical variable
@@ -516,7 +581,6 @@ military_long |>
   labs(x = 'Expenditures',
        y = 'Eastern European Countries',
        title = 'Military Spending for Eastern European Countries')
-
 ```
 
 -   At least two categorical variables
@@ -732,14 +796,29 @@ ggplot(surveys, aes(x = weight, y = species)) +
 
 ```{r}
 #| label: dvs-3-1-ex-2
+# Challenge-4
 
+ggplot(trend, aes(x = study_year, y = median_price, color = setting)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.8, alpha = 0.8) +
+  facet_wrap(~ age_group, nrow = 1) +
+  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
+                     name = "Study Year") +
+  scale_y_continuous(labels = dollar, name = "Statewide median weekly price") +
+  scale_color_brewer(palette = "Set2", name = "Setting") +
+  labs(title = "Center-based vs Family (in-home) Childcare Prices in California",
+       subtitle = "Statewide medians across counties, 2008–2018") +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
 ```
 
 -   I can use annotations (e.g., `geom_text()`)
 
 ```{r}
 #| label: dvs-3-2
-
 ```
 
 -   I can choose creative geometries (e.g., `geom_segment()`, `geom_ribbon)()`)
@@ -765,7 +844,24 @@ colleges_clean |>
 
 ```{r}
 #| label: dvs-4-across
+# Used data from Lab-4 to simulate
 
+childcare_2018 <- ca_childcare |>
+  filter(study_year == 2018)
+
+childcare_summary <- childcare_2018 |>
+  group_by(region) |>
+  summarise(
+    across(
+      .cols = c(mc_infant, mc_toddler, mc_preschool),
+      .fns = list(
+        median = ~ median(.x, na.rm = TRUE),
+        mean   = ~ mean(.x, na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}"
+    ),
+    .groups = "drop"
+  )
 ```
 
 **DVS-5: I can find summaries of variables across multiple groups.**
@@ -826,7 +922,19 @@ overview <- teacher_evals |>
 
 ```{r}
 #| label: dvs-6-ex-1
+# Lab-4, Question 4
 
+median_income_region <- ca_childcare |>
+  filter(study_year %in% c(2008, 2018)) |>
+  group_by(region, study_year) %>%
+  summarise(
+    median_income_2018 = median(mhi_2018, na.rm = TRUE), 
+    .groups = "drop") |>
+  pivot_wider(
+    names_from = study_year, 
+    values_from = median_income_2018) |>
+  arrange(desc(`2018`)) |>
+  select(region, `2008`, `2018`)
 ```
 
 -   I can modify the text in my table to be more readable (e.g., bold face for column headers)
@@ -840,7 +948,19 @@ overview <- teacher_evals |>
 
 ```{r}
 #| label: dvs-6-ex-3
+# Lab-4, Question 4
 
+median_income_region <- ca_childcare |>
+  filter(study_year %in% c(2008, 2018)) |>
+  group_by(region, study_year) %>%
+  summarise(
+    median_income_2018 = median(mhi_2018, na.rm = TRUE), 
+    .groups = "drop") |>
+  pivot_wider(
+    names_from = study_year, 
+    values_from = median_income_2018) |>
+  arrange(desc(`2018`)) |>
+  select(region, `2008`, `2018`)
 ```
 
 **DVS-7: I show creativity in my tables.**
@@ -849,13 +969,90 @@ overview <- teacher_evals |>
 
 ```{r}
 #| label: dvs-7-ex-1
+# Lab-4, Question 7
 
+plot_df <- ca_childcare |>
+  select(region, county_name, study_year, mc_infant, mc_toddler, mc_preschool) |>
+  pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
+               names_to = "age_group", values_to = "price") |>
+  mutate(
+    age_group = recode(age_group,
+                       mc_infant = "Infant",
+                       mc_toddler = "Toddler",
+                       mc_preschool = "Preschool"),
+    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
+    region    = fct_reorder2(region, study_year, price)   
+  )
+
+cols <- hcl.colors(nlevels(plot_df$region), "Dark 3")
+
+ggplot(plot_df, aes(study_year, price, color = region)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
+  facet_wrap(~ age_group, nrow = 1) +
+  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
+                     name = "Study Year") +
+  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
+                     labels = scales::number_format(accuracy = 1),  
+                     name = NULL) +
+  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
+  scale_color_manual(values = cols, name = "California Region") +
+  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
+  theme_minimal(base_size = 12) +
+  theme(
+    aspect.ratio = 1,
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(size = 6),   
+    legend.position = "right",               
+    legend.justification = "center",
+    legend.box.margin = margin(0, 0, 0, 10),
+    plot.margin = margin(5.5, 20, 5.5, 5.5)
+  )
 ```
 
 -   I can modify the layout of my table to be more readable (e.g., `pivot_longer()` or `pivot_wider()`)
 
 ```{r}
 #| label: dvs-7-ex-2
+# Lab-4, Question 7
+
+plot_df <- ca_childcare |>
+  select(region, county_name, study_year, mc_infant, mc_toddler, mc_preschool) |>
+  pivot_longer(c(mc_infant, mc_toddler, mc_preschool),
+               names_to = "age_group", values_to = "price") |>
+  mutate(
+    age_group = recode(age_group,
+                       mc_infant = "Infant",
+                       mc_toddler = "Toddler",
+                       mc_preschool = "Preschool"),
+    age_group = factor(age_group, levels = c("Infant","Toddler","Preschool")),
+    region    = fct_reorder2(region, study_year, price)   
+  )
+
+cols <- hcl.colors(nlevels(plot_df$region), "Dark 3")
+
+ggplot(plot_df, aes(study_year, price, color = region)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
+  facet_wrap(~ age_group, nrow = 1) +
+  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
+                     name = "Study Year") +
+  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
+                     labels = scales::number_format(accuracy = 1),  
+                     name = NULL) +
+  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
+  scale_color_manual(values = cols, name = "California Region") +
+  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
+  theme_minimal(base_size = 12) +
+  theme(
+    aspect.ratio = 1,
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(size = 6),   
+    legend.position = "right",               
+    legend.justification = "center",
+    legend.box.margin = margin(0, 0, 0, 10),
+    plot.margin = margin(5.5, 20, 5.5, 5.5)
+  )
 ```
 
 ## Program Efficiency
@@ -896,7 +1093,16 @@ colleges_clean <- colleges |>
 
 ```{r}
 #| label: pe-1-across
+# Lab-3, Question 8
 
+teacher_missing <- teacher_evals_clean |>
+  summarise(across(-question_no, ~ any(is.na(.))), 
+    .by = c(teacher_id, course_id)) |>
+  pivot_longer(-c(teacher_id, course_id),
+               names_to = "variable", values_to = "has_na") |>
+  filter(has_na) |>
+  summarise(missing_vars = list(sort(unique(variable))),
+      .by = c(teacher_id, course_id))
 ```
 
 -   using functions from the `map()` family
@@ -912,7 +1118,7 @@ colleges_clean <- colleges |>
 
 ```{r}
 #| label: pe-2-1
-
+# Lab-3, Question 7
 ```
 
 -   Example 2: Function that operates on data frames
@@ -935,7 +1141,16 @@ colleges_clean <- colleges |>
 
 ```{r}
 #| label: pe-3-across
+# Lab-3, Question 8
 
+teacher_missing <- teacher_evals_clean |>
+  summarise(across(-question_no, ~ any(is.na(.))), 
+    .by = c(teacher_id, course_id)) |>
+  pivot_longer(-c(teacher_id, course_id),
+               names_to = "variable", values_to = "has_na") |>
+  filter(has_na) |>
+  summarise(missing_vars = list(sort(unique(variable))),
+      .by = c(teacher_id, course_id))
 ```
 
 -   using a `map()` function with **one** input (e.g., `map()`, `map_chr()`, `map_dbl()`, etc.)
@@ -965,7 +1180,19 @@ colleges_clean <- colleges |>
 
 ```{r}
 #| label: pe-4-2
+# Lab-4, Question 8
 
+ggplot(filter(ca_childcare, study_year == 2018), 
+  aes(x = mhi_2018, y = mc_infant, color = region)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = 1), method = "lm", se = TRUE, 
+    color = "black", linewidth = 0.9) +
+  labs(
+    title = "Infant Center-Based Price vs. Median Household Income (CA)",
+    x = "Median household income (2018 $)",
+    y = "Weekly infant price ($)"
+  ) +
+  theme_minimal()
 ```
 
 ## Data Simulation & Statisical Models
@@ -1014,7 +1241,9 @@ summary(aov(weight ~ species, data = surveys))
 
 ```{r}
 #| label: dsm-2-3
+# Challenge-3, Question 3
 
+chisq.test(teacher_evals_compare$set_level, teacher_evals_compare$sen_level)
 ```
 
 ## Revising My Thinking
