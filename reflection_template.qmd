@@ -23,7 +23,7 @@ execute:
 ```{r}
 #| label: wd-1-csv-1
 
-# Lab 2
+# Lab 2, Question 1
 surveys <- read_csv(here::here("Week-2", "Lab-2", "Data", "surveys.csv"))
 ```
 
@@ -32,7 +32,7 @@ surveys <- read_csv(here::here("Week-2", "Lab-2", "Data", "surveys.csv"))
 ```{r}
 #| label: wd-1-csv-2
 
-# Lab 3
+# Lab 3, Question 2
 teacher_evals <- readr::read_csv(
   here("Week-3", "Lab-3", "data", "teacher_evals.csv"),
   show_col_types = FALSE)
@@ -104,12 +104,6 @@ teacher_evals_clean |>
 ```{r}
 #| label: wd-2-ex-3
 
-# Lab 5, Question 1
-filtered_report <- crime_scene_report |>
-  filter(type == "murder",
-         city == "SQL City",
-          date == ymd("20180115")) |>
-  select(date, type, city, description)
 ```
 
 **WD-3: I can filter rows from a dataframe for a *variety* of data types (e.g., numeric, integer, character, factor, date).**
@@ -323,24 +317,23 @@ ca_childcare <- childcare_costs |>
 #| label: wd-5-left-right-ex-2
 
 # Lab 4, Question 3
-ca_childcare <-
-  ca_childcare |>
-  left_join(
-    tax_rev |>
-      rename(
-        county_name = entity_name,
-        study_year  = year
-      ) |>
-      semi_join(
-        ca_childcare |> 
-        select(county_name, study_year) |> 
-        distinct(),
-        by = c("county_name", "study_year")
-      ) |>
-      arrange(county_name, study_year) |>
-      distinct(county_name, study_year, .keep_all = TRUE),
-    by = c("county_name", "study_year")
-  )
+# edited so functions are no longer nested
+ca_keys <- ca_childcare |>
+  select(county_name, study_year) |>
+  distinct()
+
+tax_rev_clean <- tax_rev |>
+  rename(
+    county_name = entity_name,
+    study_year  = year
+  ) |>
+  semi_join(ca_keys, by = c("county_name", "study_year")) |>
+  arrange(county_name, study_year) |>
+  distinct(county_name, study_year, .keep_all = TRUE)
+
+ca_childcare <- ca_childcare |>
+  left_join(tax_rev_clean, by = c("county_name", "study_year"))
+
 ```
 
 -   `inner_join()` Example 1
@@ -372,22 +365,30 @@ witness_2_interview <- interview |>
 #| label: wd-6-semi
 
 # Lab 4, Question 3
-ca_childcare <-
-  ca_childcare |>
+# Edited so functions are no longer nested
+ca_keys <- ca_childcare |>
+  select(county_name, study_year) |>
+  distinct()
+
+tax_rev_renamed <- tax_rev |>
+  rename(
+    county_name = entity_name,
+    study_year  = year
+  )
+
+tax_rev_filtered <- tax_rev_renamed |>
+  semi_join(
+    ca_keys,
+    by = c("county_name", "study_year")
+  )
+
+tax_rev_dedup <- tax_rev_filtered |>
+  arrange(county_name, study_year) |>
+  distinct(county_name, study_year, .keep_all = TRUE)
+
+ca_childcare <- ca_childcare |>
   left_join(
-    tax_rev |>
-      rename(
-        county_name = entity_name,
-        study_year  = year
-      ) |>
-      semi_join(
-        ca_childcare |> 
-        select(county_name, study_year) |> 
-        distinct(),
-        by = c("county_name", "study_year")
-      ) |>
-      arrange(county_name, study_year) |>
-      distinct(county_name, study_year, .keep_all = TRUE),
+    tax_rev_dedup,
     by = c("county_name", "study_year")
   )
 ```
@@ -425,11 +426,11 @@ plot_df <- ca_childcare |>
 
 ```{r}
 #| label: wd-7-wide
-
+CHECK
 # Lab 4, Question 5
 median_income_region <- ca_childcare |>
   filter(study_year %in% c(2008, 2018)) |>
-  group_by(region, study_year) %>%
+  group_by(region, study_year) |>
   summarise(
     median_income_2018 = median(mhi_2018, na.rm = TRUE), 
     .groups = "drop") |>
@@ -458,29 +459,18 @@ The following assignments satisfy the above criteria:
 ```{r}
 #| label: r-2-1
 
-# Lab 4, Question 7
-ggplot(plot_df, aes(study_year, price, color = region)) +
-  geom_point(alpha = 0.5, size = 1.2) +
-  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
-  facet_wrap(~ age_group, nrow = 1) +
-  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
-                     name = "Study Year") +
-  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
-                     labels = scales::number_format(accuracy = 1),  
-                     name = NULL) +
-  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
-  scale_color_manual(values = cols, name = "California Region") +
-  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
-  theme_minimal(base_size = 12) +
-  theme(
-    aspect.ratio = 1,
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(size = 6),   
-    legend.position = "right",               
-    legend.justification = "center",
-    legend.box.margin = margin(0, 0, 0, 10),
-    plot.margin = margin(5.5, 20, 5.5, 5.5)
-  )
+# Lab 4, Question 8
+ggplot(filter(ca_childcare, study_year == 2018), 
+  aes(x = mhi_2018, y = mc_infant, color = region)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = 1), method = "lm", se = TRUE, 
+    color = "black", linewidth = 0.9) +
+  labs(
+    title = "Infant Center-Based Price vs. Median Household Income (CA)",
+    x = "Median household income (2018 $)",
+    y = "Weekly infant price ($)"
+  ) +
+  theme_minimal()
 ```
 
 -   Example of **dplyr** pipeline
@@ -519,17 +509,6 @@ teacher_evals_clean <- teacher_evals |>
 ```{r}
 #| label: r-3-example
 
-# Lab 4, Question 5
-median_income_region <- ca_childcare |>
-  filter(study_year %in% c(2008, 2018)) |>
-  group_by(region, study_year) %>%
-  summarise(
-    median_income_2018 = median(mhi_2018, na.rm = TRUE), 
-    .groups = "drop") |>
-  pivot_wider(names_from = study_year, 
-  values_from = median_income_2018) |>
-  arrange(desc(`2018`)) |>
-  select(region, `2008`, `2018`)
 ```
 
 -   Example (function stops)
@@ -582,29 +561,6 @@ ggplot(surveys, mapping = aes(x = species, y = weight, color = species)) +
 ```{r}
 #| label: dvs-2-cat
 
-# Lab 4, Question 7
-ggplot(plot_df, aes(study_year, price, color = region)) +
-  geom_point(alpha = 0.5, size = 1.2) +
-  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
-  facet_wrap(~ age_group, nrow = 1) +
-  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
-                     name = "Study Year") +
-  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
-                     labels = scales::number_format(accuracy = 1),  
-                     name = NULL) +
-  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
-  scale_color_manual(values = cols, name = "California Region") +
-  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
-  theme_minimal(base_size = 12) +
-  theme(
-    aspect.ratio = 1,
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(size = 6),   
-    legend.position = "right",               
-    legend.justification = "center",
-    legend.box.margin = margin(0, 0, 0, 10),
-    plot.margin = margin(5.5, 20, 5.5, 5.5)
-  )
 ```
 
 -   Dates (time series plot)
@@ -664,19 +620,6 @@ ggplot(surveys, aes(x = weight, y = species)) +
 ```{r}
 #| label: dvs-2-ex-2
 
-# Lab 2, Question 16
-ggplot(surveys, aes(x = weight, y = species)) +
-  geom_boxplot(outlier.shape = NA, orientation = "y") +
-  geom_jitter(
-    orientation = "y",
-    height = 0.2, width = 0,
-    color = "steelblue", alpha = 0.35
-  ) +
-  labs(
-    title = "Weight by Species",
-    x = "Weight (g)",
-    y = "Species"
-  )
 ```
 
 -   I can modify my plot titles to clearly communicate the data context
@@ -729,29 +672,6 @@ ggplot(plot_df, aes(study_year, price, color = region)) +
 ```{r}
 #| label: dvs-2-ex-4
 
-# Lab 4, Question 7
-ggplot(plot_df, aes(study_year, price, color = region)) +
-  geom_point(alpha = 0.5, size = 1.2) +
-  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
-  facet_wrap(~ age_group, nrow = 1) +
-  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
-                     name = "Study Year") +
-  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
-                     labels = scales::number_format(accuracy = 1),  
-                     name = NULL) +
-  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
-  scale_color_manual(values = cols, name = "California Region") +
-  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
-  theme_minimal(base_size = 12) +
-  theme(
-    aspect.ratio = 1,
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(size = 6),   
-    legend.position = "right",               
-    legend.justification = "center",
-    legend.box.margin = margin(0, 0, 0, 10),
-    plot.margin = margin(5.5, 20, 5.5, 5.5)
-  )
 ```
 
 -   I can reorder my legend to align with the colors in my plot
@@ -1184,7 +1104,18 @@ fish |>
 ```{r}
 #| label: pe-2-1
 
-
+# Lab 8, Question 1
+rescale_01 <- function(vec) {
+  if (!is.numeric({{ vec }})) stop("`vec` must be numeric.")
+  if (length({{ vec }}) <= 1L) stop("`vec` must have length > 1.")
+  
+  rng <- range({{ vec }}, na.rm = TRUE)
+  denom <- diff(rng)
+  
+  if (denom == 0) return(ifelse(is.na({{ vec }}), NA_real_, 0))
+  
+  ({{ vec }} - rng[1]) / denom
+}
 ```
 
 -   Example 2: Function that operates on data frames
@@ -1192,6 +1123,15 @@ fish |>
 ```{r}
 #| label: pe-2-2
 
+# Lab 8, Question 2
+pivot_table <- function(df, row, col){
+  df |>
+    count({{ row }}, {{ col }}) |>
+    pivot_wider(names_from = {{ col }},
+                values_from = n,
+                values_fill = 0) |>
+    adorn_totals(where = c("row", "col"))
+}
 ```
 
 -   Example 3: Function that operates on vectors *or* data frames
@@ -1199,6 +1139,16 @@ fish |>
 ```{r}
 #| label: pe-2-3
 
+# Lab 8, Question 3
+scatter_func <- function(df, x_var, y_var) {
+  ggplot(data = df, aes(x = {{ x_var }}, y = {{ y_var }}, color = {{ x_var }})) +
+    geom_point() + 
+    labs(title = "Scatter Plot of Vars X and Y",
+         x = "X Variable",
+         y = "Y Variable",
+         color = "X Variable") + 
+    theme_minimal()
+}
 ```
 
 **PE-3:I can use iteration to reduce repetition in my code.**
@@ -1208,6 +1158,11 @@ fish |>
 ```{r}
 #| label: pe-3-across
 
+# Lab 8, Question 1
+rescale_column <- function(df, cols) {
+  df |>
+    mutate(across({{ cols }}, rescale_01)) 
+}
 ```
 
 -   using a `map()` function with **one** input (e.g., `map()`, `map_chr()`, `map_dbl()`, etc.)
@@ -1215,6 +1170,17 @@ fish |>
 ```{r}
 #| label: pe-3-map-1
 
+# Lab 9, Question 3
+surveys |>
+  map_chr(class) |>
+  enframe(name = "Variable", value = "Data Type") |>
+  arrange(Variable) |>
+  kable(
+    col.names = c("Variable", "Data Type"),
+    caption = "Table 1: Data Types of Variables in the 'surveys' Dataset"
+  ) |>
+  kable_styling(full_width = FALSE) |>
+  row_spec(0, bold = TRUE)
 ```
 
 -   using a `map()` function with **more than one** input (e.g., `map_2()` or `pmap()`)
@@ -1222,6 +1188,15 @@ fish |>
 ```{r}
 #| label: pe-3-map-2
 
+# Lab 9, Question 7
+fish |>
+  map_int(~ sum(is.na(.x))) |>
+  enframe(name = "Variable", value = "n_missing") |>
+  arrange(desc(n_missing)) |>
+  kable(
+    col.names = c("Variable", "Number of missing values"),
+    caption   = "Number of missing values for each variable in the fish dataset"
+  )
 ```
 
 **PE-4: I can use modern tools when carrying out my analysis.**
@@ -1231,6 +1206,29 @@ fish |>
 ```{r}
 #| label: pe-4-1
 
+# Lab 4, Question 7
+ggplot(plot_df, aes(study_year, price, color = region)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  geom_smooth(method = "loess", se = TRUE, linewidth = 0.8) +
+  facet_wrap(~ age_group, nrow = 1) +
+  scale_x_continuous(breaks = c(2008, 2010, 2012, 2014, 2016, 2018),
+                     name = "Study Year") +
+  scale_y_continuous(breaks = c(100, 200, 300, 400, 500),
+                     labels = scales::number_format(accuracy = 1),  
+                     name = NULL) +
+  coord_cartesian(xlim = c(2008, 2018), ylim = c(100, 500), clip = "off") +
+  scale_color_manual(values = cols, name = "California Region") +
+  labs(title = "Weekly Median Price for Center-Based Childcare ($)") +
+  theme_minimal(base_size = 12) +
+  theme(
+    aspect.ratio = 1,
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(size = 6),   
+    legend.position = "right",               
+    legend.justification = "center",
+    legend.box.margin = margin(0, 0, 0, 10),
+    plot.margin = margin(5.5, 20, 5.5, 5.5)
+  )
 ```
 
 -   I can connect a data wrangling pipeline into a `ggplot()`
@@ -1238,6 +1236,12 @@ fish |>
 ```{r}
 #| label: pe-4-2
 
+# Lab 1, Question 6
+ToothGrowth |>
+  mutate(dose = as.factor(dose)) |>
+  ggplot(mapping = aes(x = dose, y = len)) +
+  geom_boxplot() +
+  labs(x = "Dose of Supplement (mg/day)", y = "Length of Teeth (mm)")
 ```
 
 ## Data Simulation & Statisical Models
@@ -1265,6 +1269,8 @@ fish |>
 ```{r}
 #| label: dsm-2-1
 
+# Lab 2, Question 17
+summary(aov(weight ~ species, data = surveys))
 ```
 
 -   Example 2
@@ -1272,13 +1278,15 @@ fish |>
 ```{r}
 #| label: dsm-2-2
 
+# Lab 4, Question 9
+reg_mod1 <- lm(mc_infant ~ mhi_2018, data = ca_childcare, subset = (study_year == 2018))
+summary(reg_mod1)
 ```
 
 -   Example 3
 
 ```{r}
 #| label: dsm-2-3
-
 ```
 
 ## Revising My Thinking

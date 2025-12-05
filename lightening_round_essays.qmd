@@ -6,12 +6,12 @@ editor: visual
 
 **Answer each of the following questions with *one sentence* including a brief explanation.**
 
-1.  Finish the sentence with another student’s name: "If \[Name of Student\] doesn’t earn an A, then nobody should, because..." Explain your choice and your reasoning.
+1.  If Megan Fung does not receive an A, no one should because she consistently puts in her best effort towards each assignment and practice activity, and learns and takes into account every revision she receives towards her future assignments.
 
-2.  What was the most difficult part of the class for you? List a general topic, a specific problem, a kind of work we did, etc. and explain why.
+2.  The most difficult part of class for me was learning how to write clean dplyr pipelines without nesting operations incorrectly because it took time to understand how each step flows into the next and how to break processes apart so that the code is clear and error-free.
 
-3.  What was the easiest part of the class for you? Explain why.
+3.  The easiest part of the class for me was creating functions because I am used to writing functions as a computer science major, so I felt it came naturally to me.
 
-4.  What part of the class surprised or interested you the most? Explain why.
+4.  The part of the class that surprised me the most was how flexible ggplot is, because I didn’t realize that simple plots could quickly become clear, polished visualizations just by adding a few layers and adjustments.
 
-5.  Give one piece of advice to a student just beginning a quarter of STAT 331 that will help them be successful in learning.
+5.  My advice to a student starting STAT 331 is to build each pipeline one step at a time instead of trying to write everything at once, because breaking the work into smaller pieces makes debugging much easier and helps you understand what each function is doing.
